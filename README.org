@@ -2,14 +2,40 @@
 
 ** Usage
 
+#+BEGIN_SRC lisp
+(require :ant)
+(main)
+#+END_SRC
+
+| key                | description        |
+|--------------------+--------------------|
+| S                  | Start/Stop running |
+| R                  | Reset              |
+| up/down arrow keys | move               |
+| Mouse1 Drag        | move               |
+| +/-                | Zoom up/down       |
+| Mouse2 Drag        | put walls          |
+| Mouse3 Drag        | put ant's food     |
+|                    |                    |
+
 ** Dependencies
+
++ Ubuntu Linux 12.04
++ SBCL 1.1.2
++ install with quicklisp and require
+  + cl-gtk2-gtk
+  + cl-annot
+  + anaphora
+  + alexandria
+  + iterate
+  + closer-mop
 
 ** Installation
 
-
 ** Author
 
-+ guicho
++ Masataro Asai 
++ guicho2.71828@gmail.com
 
 
 * Copyright
