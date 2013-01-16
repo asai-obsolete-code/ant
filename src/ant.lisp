@@ -32,7 +32,7 @@
 (defparameter *ant-max-food* 5)
 (defparameter *ant-sight* 5)
 (defparameter *ant-smelling* 10)
-(defparameter *field-max-food* 200)
+(defparameter *field-max-food* 100)
 (defparameter *field-max-pheromon* 200)
 (defparameter *initial-pheromon* 25)
 (defparameter *pheromon-evaporation-rate* 1)
@@ -463,7 +463,8 @@
 ;;;; ant behaviors
 
 (defun search-food (ant)
-  (if (food-found-p ant)
+  (if (and (not (have-food-p ant))
+		   (food-found-p ant))
 	  (collect-food ant)
 	  (ant-move-to 
 	   ant 

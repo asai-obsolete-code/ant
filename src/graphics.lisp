@@ -129,19 +129,22 @@
 		(dolist (ant *ants*)
 		  (with-slots (x y) ant
 			(cond
-			  ((plusp (ant-food ant))
-			   (cairo:set-source-rgb 0.8 0.1 0.1))
-			  ((eq (ant-mode ant) :random-walk)
+			  ((and (plusp (ant-food ant)) (eql (ant-mode ant) :random-walk))
 			   (cairo:set-source-rgb 0 0 0))
-			  ((eq (ant-mode ant) :heuristics)
+			  ((and (plusp (ant-food ant)) (eql (ant-mode ant) :heuristics))
+			   (cairo:set-source-rgb 0.8 0.1 0.1))
+			  (t
 			   (cairo:set-source-rgb 0.1 0.8 0.1)))
 			(cairo:rectangle x y 1 1)
 			(cairo:fill-path)))
-
 
 		;;draw walls
 		(with-iter-array (o x y) *obstacles*
 		  (when o
 			(cairo:rectangle x y 1 1)
 			(cairo:set-source-rgba 0 0 0 0.5)
-			(cairo:fill-path)))))))
+			(cairo:fill-path)))
+
+		;; draw status
+		;; (pango:
+		))))
