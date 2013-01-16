@@ -16,7 +16,7 @@
 | +/-                | Zoom up/down       |
 | Mouse2 Drag        | put walls          |
 | Mouse3 Drag        | put ant's food     |
-|                    |                    |
+
 
 *** Attention
 
