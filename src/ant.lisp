@@ -20,21 +20,22 @@
 
 (defvar *step-ms* 100)
 
-(defparameter *width* 150)
-(defparameter *height* 150)
+(defparameter *width* 100)
+(defparameter *height* 100)
 (defvar *field* (make-array (list *width* *height*)))
 (defparameter *colony-x* (random *width*))
 (defparameter *colony-y* (random *height*))
 (defparameter *stored-food* 0)
 (defparameter *ants* nil)
-(defparameter *ant-max-power* 300)
+(defparameter *ant-max-power* 100)
+(defparameter *ant-heuristics-power* 50)
 (defparameter *ant-max-food* 5)
 (defparameter *ant-sight* 5)
 (defparameter *ant-smelling* 10)
 (defparameter *field-max-food* 200)
 (defparameter *field-max-pheromon* 200)
 (defparameter *initial-pheromon* 25)
-(defparameter *pheromon-evaporation-rate* 3)
+(defparameter *pheromon-evaporation-rate* 1)
 (defparameter *pheromon-appoximation-unit* 5)
 (defparameter *pheromon-detectable-limit* 5)
 
@@ -131,7 +132,7 @@
   (not (field-valid-p x y)))
 
 
-(defstruct ant x y vx vy food)
+(defstruct ant x y vx vy food power mode)
 (defun at-colony-p (ant)
   (with-slots (x y) ant
 	(> 4 (euclid-distance x y *colony-x* *colony-y*))))
@@ -143,9 +144,22 @@
 (defun ant-move-to (ant x-y-pos)
   (with-slots (x y vx vy) ant
 	(destructuring-bind (nx ny) x-y-pos
-	  (setf vx (- nx x) vy (- ny y) x nx y ny))))
+	  (setf vx (- nx x) vy (- ny y) x nx y ny)))
+  (if (have-food-p ant)
+	  (case (ant-mode ant)
+		(:heuristics
+		 (decf (ant-power ant))
+		 (when (zerop (ant-power ant))
+		   (setf (ant-mode ant) :random-walk)))
+		(:random-walk
+		 (incf (ant-power ant))
+		 (when (< *ant-heuristics-power* (ant-power ant))
+		   (setf (ant-mode ant) :heuristics))))
+	  (progn
+		(setf (ant-power ant) *ant-max-power*)
+		(setf (ant-mode ant) :heuristics))))
 
-(defun emit-pheromon (ant &optional (strength 1) (diffusion 0.5))
+(defun emit-pheromon (ant &optional (strength 1) (diffusion 0.2))
   (iter (for (x y) in (positions-backward ant 1))
 		(incf (pheromon-at x y)
 			  (* diffusion
@@ -177,7 +191,8 @@
 (defun setup ()
   (setup-field *default-food-rate*)
   (setup-ants *default-ants-number*)
-  (setup-obstacles))
+  (setup-obstacles)
+  (setf *stored-food* 0))
 
 (defun setup-obstacles ()
   (with-iter-array-row-major (o) *obstacles*
@@ -201,7 +216,9 @@
 						:y *colony-y*
 						:vx 0
 						:vy 0
-						:food 0)
+						:food 0
+						:power *ant-max-power*
+						:mode :heuristics)
 			  *ants*)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -248,7 +265,8 @@
 
 (defun store-into-colony (ant)
   (incf *stored-food* (ant-food ant))
-  (setf (ant-food ant) 0))
+  (setf (ant-food ant) 0)
+  (print *stored-food* *main-thread-output*))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; ant looking around
@@ -474,7 +492,10 @@
 	  (ant-move-to 
 	   ant 
 	   (or (position-of-colony-within-sight ant *ant-sight*)
-		   (bias-if 0.2d0
+		   (bias-if (case (ant-mode ant)
+					  (:heuristics 0.99d0)
+					  (:random-walk 0.01d0)
+					  (t 0.0d0))
 					(position-nearest-to-colony ant))
 		   (bias-cond
 			 (20 (position-with-pheromon ant *ant-smelling*))

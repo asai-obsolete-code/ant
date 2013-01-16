@@ -128,9 +128,13 @@
 		;; draws ants
 		(dolist (ant *ants*)
 		  (with-slots (x y) ant
-			(if (plusp (ant-food ant))
-				(cairo:set-source-rgb 0.7 0.2 0.1)
-				(cairo:set-source-rgb 0.1 0.7 0.1))
+			(cond
+			  ((plusp (ant-food ant))
+			   (cairo:set-source-rgb 0.8 0.1 0.1))
+			  ((eq (ant-mode ant) :random-walk)
+			   (cairo:set-source-rgb 0 0 0))
+			  ((eq (ant-mode ant) :heuristics)
+			   (cairo:set-source-rgb 0.1 0.8 0.1)))
 			(cairo:rectangle x y 1 1)
 			(cairo:fill-path)))
 
