@@ -5,6 +5,7 @@
 ;; translation and scaling in the user space
 (defvar *translation* (2dv* 0 0))
 (defvar *scale* 0)
+(defvar *stepping-id* nil)
 
 (defparameter +pixel-step+ 10)
 (defparameter +scaling-base+ 1.2)
@@ -33,12 +34,37 @@
   (defun button-press (canvas e)
 	@ignorable canvas e
 	(format *main-thread-output*
-			"~%pressed  ~a at: [~a ~a]"
+			"~%pressed  ~a at: [~a ~a] ~a"
 			(event-button-button e)
 			(event-button-x e)
-			(event-button-y e))
-	(setf v (2dv (event-button-x e)
-				 (event-button-y e))))
+			(event-button-y e)
+			(event-button-state e))
+	
+	(case (event-button-button e)
+	  (1 (setf v (2dv (event-button-x e)
+					  (event-button-y e))))
+	  (2
+	   (with-slots (x y) (user-space
+						  (2dv (event-button-x e)
+							   (event-button-y e))
+						  *translation* *scale*)
+		 (mapc (apply-to-pos
+				(lambda (x y)
+				  (setf (obstacle-at x y) t)))
+			   (positions-around-native
+				(mod (floor x) *width*)
+				(mod (floor y) *height*) 2))))
+	  (3
+	   (with-slots (x y) (user-space
+						  (2dv (event-button-x e)
+							   (event-button-y e))
+						  *translation* *scale*)
+		 (mapc (apply-to-pos
+				(lambda (x y)
+				  (setf (food-at x y) *field-max-food*)))
+			   (positions-around-native
+				(mod (floor x) *width*)
+				(mod (floor y) *height*) 2))))))
   
   @export
   (defun button-release (canvas e)
@@ -53,13 +79,36 @@
   @export
   (defun motion-notify (canvas e)
 	@ignorable canvas e
-	(when (member :button1-mask (event-motion-state e))
-	  (let ((v2 (2dv (event-motion-x e) (event-motion-y e))))
-		(setf *translation*
-			  (add *translation*
-				   (scale-vector (sub v2 v)
-								 (d/ (scaling-factor *scale*)))))
-		(setf v v2))))
+	(cond
+	  ((member :button1-mask (event-motion-state e))
+	   (let ((v2 (2dv (event-motion-x e) (event-motion-y e))))
+		 (setf *translation*
+			   (add *translation*
+					(scale-vector (sub v2 v)
+								  (d/ (scaling-factor *scale*)))))
+		 (setf v v2)))
+	  ((member :button3-mask (event-motion-state e))
+	   (with-slots (x y) (user-space
+						  (2dv (event-motion-x e)
+							   (event-motion-y e))
+						  *translation* *scale*)
+		 (mapc (apply-to-pos
+				(lambda (x y)
+				  (setf (food-at x y) *field-max-food*)))
+			   (positions-around-native
+				(mod (floor x) *width*)
+				(mod (floor y) *height*) 2))))
+	  ((member :button2-mask (event-motion-state e))
+	   (with-slots (x y) (user-space
+						  (2dv (event-motion-x e)
+							   (event-motion-y e))
+						  *translation* *scale*)
+		 (mapc (apply-to-pos
+				(lambda (x y)
+				  (setf (obstacle-at x y) t)))
+			   (positions-around-native
+				(mod (floor x) *width*)
+				(mod (floor y) *height*) 2))))))
 
   @export
   (defun key-press (canvas e)
@@ -72,7 +121,13 @@
 			   (gdk:drawable-get-size (widget-window canvas))
 			 (scroll-at (/ width 2) (/ height 2) (- *scale* 1))))
 	  (#\s (stepping))
-	  (#\S )
+	  (#\S (toggle-start-stop))
+	  (#\< (setf *step-ms* (* *step-ms* +scaling-base+))
+		   (toggle-start-stop)
+		   (toggle-start-stop))
+	  (#\> (setf *step-ms* (/ *step-ms* +scaling-base+))
+		   (toggle-start-stop)
+		   (toggle-start-stop))
 	  (#\t )
 	  (#\p )
 	  (#\r (setf *scale* 0 *translation* (2dv 0.0d0 0.0d0)))

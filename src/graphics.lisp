@@ -68,6 +68,17 @@
 	 ,@body
 	 (cairo:restore cairo:*context*)))
 
+(defun toggle-start-stop ()
+  (if *stepping-id*
+	  (progn (glib:g-source-remove *stepping-id*)
+			 (setf *stepping-id* nil))
+	  (setf *stepping-id*
+			(gtk:gtk-main-add-timeout
+			 (floor *step-ms*)
+			 (lambda ()
+			   (stepping)
+			   t)))))
+
 (defun reflesh (canvas)
   (with-context (w h) canvas
 	(with-saved-context 
@@ -104,11 +115,16 @@
 		;; draws ants
 		(dolist (ant *ants*)
 		  (with-slots (x y) ant
-			(cairo:set-source-rgb 0.1 0.1 0.1)
+			(if (plusp (ant-food ant))
+				(cairo:set-source-rgb 0.7 0.2 0.1)
+				(cairo:set-source-rgb 0.1 0.7 0.1))
 			(cairo:rectangle x y 1 1)
-			(cairo:fill-path)
-			
-			(cairo:set-source-rgb 1 0.3 0.3)
-			;; (/ (ant-food ant) *ant-max-food*)
+			(cairo:fill-path)))
+
+
+		;;draw walls
+		(with-iter-array (o x y) *obstacles*
+		  (when o
 			(cairo:rectangle x y 1 1)
-			(cairo:stroke))))))
+			(cairo:set-source-rgba 0 0 0 0.5)
+			(cairo:fill-path))))))

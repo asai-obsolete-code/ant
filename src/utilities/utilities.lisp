@@ -53,14 +53,6 @@
   @ignore args
   t)
 
-@export
-(defun drandom-between (x0 x1)
-  (d+ x0 (drandom (d- x1 x0))))
-
-@export
-(defun random-between (x0 x1)
-  (+ x0 (random (- x1 x0))))
-
 (setf (symbol-function 'new) #'make-instance)
 
 @export

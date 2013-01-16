@@ -62,12 +62,6 @@ no care for multiple-evaluation."
 		(collect e into before))
 	  (list lst)))
 
-@eval-always
-@export
-(defmacro bias-if (bias then &optional else)
-  `(if (d< (drandom 1.0d0) ,bias)
-	   ,then
-	   ,else))
 
 @eval-always
 @export

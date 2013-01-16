@@ -5,6 +5,7 @@
 
 (defpackage ant
   (:use :cl
+		:annot.doc
 		:anaphora
 		:iterate
 		:alexandria
@@ -17,6 +18,8 @@
   (:shadow :scale :rotate :range))
 (in-package :ant)
 
+(defvar *step-ms* 100)
+
 (defparameter *width* 100)
 (defparameter *height* 100)
 (defvar *field* (make-array (list *width* *height*)))
@@ -25,10 +28,21 @@
 (defparameter *stored-food* 0)
 (defparameter *ants* nil)
 (defparameter *ant-max-food* 5)
-(defparameter *field-max-food* 20)
-(defparameter *field-max-pheromon* 100)
-(defparameter *initial-pheromon* 20)
+(defparameter *ant-sight* 5)
+(defparameter *ant-smelling* 10)
+(defparameter *field-max-food* 200)
+(defparameter *field-max-pheromon* 200)
+(defparameter *initial-pheromon* 25)
 (defparameter *pheromon-evaporation-rate* 1)
+(defparameter *pheromon-appoximation-unit* 5)
+(defparameter *pheromon-detectable-limit* 5)
+
+(defparameter *default-food-rate* 0.0d0)
+(defparameter *default-ants-number* 50)
+
+(defparameter *obstacles* (make-array (list *width* *height*)
+									  :element-type 'boolean
+									  :initial-element nil))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; utility
@@ -66,6 +80,9 @@
 	 array
 	 `(symbol-macrolet ((,instance (aref ,array ,@subscripts)))
 		,@body))))
+
+(defun approximate (x divisor)
+  (* divisor (floor x divisor)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; distance/dot functions
@@ -122,12 +139,48 @@
   (with-slots (x y) ant
 	(aref *field* x y)))
 
+(defun ant-move-to (ant x-y-pos)
+  (with-slots (x y vx vy) ant
+	(destructuring-bind (nx ny) x-y-pos
+	  (setf vx (- nx x) vy (- ny y) x nx y ny))))
+
+(defun emit-pheromon (ant &optional (strength 1) (diffusion 0.5))
+  (iter (for (x y) in (positions-backward ant 1))
+		(incf (pheromon-at x y)
+			  (* diffusion
+				 strength
+				 (ant-food ant)
+				 *initial-pheromon*))
+		(when (> (pheromon-at x y) *field-max-pheromon*)
+		  (setf (pheromon-at x y) *field-max-pheromon*)))
+  (with-slots (x y) ant
+	(incf (pheromon-at x y)
+		  (* strength
+			 (ant-food ant)
+			 *initial-pheromon*))
+	(when (> (pheromon-at x y) *field-max-pheromon*)
+		  (setf (pheromon-at x y) *field-max-pheromon*))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; obstacle
+
+
+(defun obstacle-at (x y)
+  (aref *obstacles* x y))
+(defun (setf obstacle-at) (value x y)
+  (setf (aref *obstacles* x y) value))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; setup
 
 (defun setup ()
-  (setup-field 0.1d0)
-  (setup-ants 10))
+  (setup-field *default-food-rate*)
+  (setup-ants *default-ants-number*)
+  (setup-obstacles))
+
+(defun setup-obstacles ()
+  (with-iter-array-row-major (o) *obstacles*
+	(setf o nil)))
 
 (defun setup-field (rate)
   (setf *colony-x* (random *width*))
@@ -176,7 +229,7 @@
   (plusp (ant-food ant)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; ant searching food 
+;;;; ant collecting and storing food
 
 (defun find-food (ant)
   (field-food (ant-field ant)))
@@ -188,62 +241,177 @@
   (decf (field-food (ant-field ant)) *ant-max-food*)
   (setf (ant-food ant) *ant-max-food*)
   (when (minusp (field-food (ant-field ant)))
-	(setf (field-food (ant-field ant)) 0)))
-
-(defun search-food (ant)
-  (if (food-found-p ant)
-	  (collect-food ant)
-	  (with-slots (x y vx vy) ant
-		(destructuring-bind (nx ny)
-			(or (position-with-highest-pheromon-around ant)
-				(position-most-away-from-other-ants ant)
-				(random-elt (valid-next-positions ant)))
-		  (setf vx (- nx x) vy (- ny y) x nx y ny)))))
-
-
-(defun valid-next-positions (ant)
-  (with-slots (x y vx vy) ant
-	(iter
-	  (for dx from -1 to 1)
-	  (when (= dx (- vx))
-		(next-iteration))
-	  (appending
-	   (iter
-		 (for dy from -1 to 1)
-		 (when (or (= dx dy 0)
-				   (= dy (- vy)))
-		   (next-iteration))
-		 (collect (list (mod (+ x dx) *width*)
-						(mod (+ y dy) *height*))))))))
-
-(defun position-with-highest-pheromon-around (ant)
-  (iter (for lst in (valid-next-positions ant))
-		(for p = (apply #'pheromon-at lst))
-		(when (< 0 p)
-		  (finding lst maximizing p))))
-
-(defun position-most-away-from-other-ants (ant)
-  (iter (for lst in (valid-next-positions ant))
-		(for (x y) = lst)
-		(finding
-		 lst
-		 maximizing
-		 (iter
-		   (for another in (remove ant *ants*))
-		   (minimizing
-			(euclid-distance
-			 x y (ant-x another) (ant-y another)))))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; ant going back home
-
-(defun no-pheromon-in-front (ant)
-  (iter (for (x y) in (valid-next-positions ant))
-		(always (= (pheromon-at x y) 0))))
+	(setf (field-food (ant-field ant)) 0))
+  (emit-pheromon ant 3.0))
 
 (defun store-into-colony (ant)
   (incf *stored-food* (ant-food ant))
   (setf (ant-food ant) 0))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; ant looking around
+
+(defun apply-to-pos (fn)
+  (lambda (pos) ;; x y list of position
+	(destructuring-bind (x y) pos
+	  (funcall fn x y))))
+
+(defun remove-collision (lst)
+  (remove-if
+   (apply-to-pos #'obstacle-at)
+   lst))
+
+(defun ensure-collision (pos)
+  (when pos
+	(unless (funcall (apply-to-pos #'obstacle-at) pos)
+	  pos)))
+
+(defun positions-around-native (x y radius)
+  (iter
+	(for dx from (- radius) to radius)
+	(appending
+	 (iter
+	   (for dy from (- radius) to radius)
+	   (when (= dx dy 0) (next-iteration))
+	   (collect (list (mod (+ x dx) *width*)
+					  (mod (+ y dy) *height*)))))))
+
+(defun positions-around (ant radius)
+  (with-slots (x y vx vy) ant
+	(remove-collision
+	 (positions-around-native x y radius))))
+
+(defun positions-forward (ant radius)
+  (with-slots (x y vx vy) ant
+	(remove-if
+	 (lambda (x-y)
+	   (destructuring-bind (x1 y1) x-y
+		 (not (plusp (easy-dot vx vy (- x1 x) (- y1 y))))))
+	 (positions-around ant radius))))
+
+(defun positions-backward (ant radius)
+  (with-slots (x y vx vy) ant
+	(remove-if
+	 (lambda (x-y)
+	   (destructuring-bind (x1 y1) x-y
+		 (not (minusp (easy-dot vx vy (- x1 x) (- y1 y))))))
+	 (positions-around ant radius))))
+
+(defun positions-intelligent (ant radius)
+  (with-slots (x y) ant
+	(if (plusp (pheromon-at x y))
+		(positions-forward ant radius)
+		(positions-around ant radius))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; various searching scheme
+
+
+(defun position-with-largest-food (ant radius)
+  (ignore-errors
+	(with-slots (x y) ant
+	  (let ((fn (apply-to-pos #'food-at)))
+		(destructuring-bind (tx ty)
+			(car (sort (remove-if-not #'plusp
+									  (positions-intelligent ant radius)
+									  :key fn)
+					   #'> :key fn))
+		  (ensure-collision
+		   (list (mod (+ x (signum (- tx x))) *width*)
+				 (mod (+ y (signum (- ty y))) *width*))))))))
+
+(defun position-with-pheromon (ant radius)
+  (ignore-errors
+	(with-slots (x y) ant
+	  (let ((fn (apply-to-pos #'pheromon-at)))
+		(destructuring-bind (tx ty)
+			(random-elt (remove-if-not #'plusp
+									   (positions-intelligent ant radius)
+									   :key fn))
+		  (ensure-collision
+		   (list (mod (+ x (signum (- tx x))) *width*)
+				 (mod (+ y (signum (- ty y))) *width*))))))))
+
+(defun position-with-least-but-decent-pheromon (ant radius)
+  (ignore-errors
+	(with-slots (x y) ant
+	  (let ((fn (apply-to-pos #'pheromon-at)))
+		(destructuring-bind (tx ty)
+			(car (sort (remove-if-not #'plusp
+									  (positions-intelligent ant radius)
+									  :key fn)
+					   #'<  :key fn))
+		  (ensure-collision
+		   (list (mod (+ x (signum (- tx x))) *width*)
+				 (mod (+ y (signum (- ty y))) *width*))))))))
+
+(defun stdev (lst)
+  (let* ((m (mean lst))
+		 (var (reduce #'+ (mapcar (lambda (x) (^2 (- x m))) lst))))
+	(values (sqrt var)
+			m var)))
+
+(defparameter *irregular-rate* 3)
+
+(defun least-or-wave-top (poslst)
+  (let ((scores (mapcar (apply-to-pos #'pheromon-at) poslst)))
+	(multiple-value-bind (sigma mean) (stdev scores)
+	  (if-let ((n (position-if (lambda (x) (> (/ (- x mean) sigma)
+									   *irregular-rate*))
+						scores)))
+		(nth n poslst)
+		(iter (for pos in poslst)
+			  (finding pos
+					   minimizing
+					   (funcall (apply-to-pos #'pheromon-at) pos)))))))
+						
+(defun position-with-least-or-wave-top (ant radius)
+  (ignore-errors
+	(with-slots (x y) ant
+	  (destructuring-bind (tx ty)
+		  (least-or-wave-top
+		   (remove-if-not #'plusp
+						  (positions-intelligent ant radius)
+						  :key (apply-to-pos #'pheromon-at)))
+		(ensure-collision
+		 (list (mod (+ x (signum (- tx x))) *width*)
+			   (mod (+ y (signum (- ty y))) *width*)))))))
+
+
+(defun position-with-most-pheromon (ant radius)
+  (ignore-errors
+	(with-slots (x y) ant
+	  (let ((fn (apply-to-pos #'pheromon-at)))
+		(destructuring-bind (tx ty)
+			(car (sort (remove-if-not #'plusp
+									  (positions-intelligent ant radius)
+									  :key fn)
+					   #'>  :key fn))
+		  (ensure-collision
+		   (list (mod (+ x (signum (- tx x))) *width*)
+				 (mod (+ y (signum (- ty y))) *width*))))))))
+
+(defun position-when-go-straight (ant)
+  (with-slots (x y vx vy) ant
+	(ensure-collision
+	 (list (mod (+ x vx) *width*)
+		   (mod (+ y vy) *height*)))))
+
+(defun position-most-away-from-other-ants (ant minimum-distance)
+  (ensure-collision
+   (iter (for lst in (positions-intelligent ant 1))
+		 (for (x y) = lst)
+		 (for mindist =
+			  (iter
+				(for another in (remove ant *ants*))
+				(minimizing
+				 (euclid-distance
+				  x y (ant-x another) (ant-y another)))))
+		 (when (< mindist minimum-distance)
+		   (finding lst maximizing mindist)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; ant going back home
 
 (defun distance-from-colony (dlst)
   (manhattan-distance
@@ -251,19 +419,71 @@
    *colony-x* *colony-y*))
 
 (defun position-nearest-to-colony (ant)
-  (iter (for lst in (valid-next-positions ant))
-		(finding lst minimizing (distance-from-colony lst))))
+  (ensure-collision
+   (iter (for lst in (positions-intelligent ant 1))
+		 (finding lst minimizing (distance-from-colony lst)))))
+
+(defun within-radius-of-colony (radius)
+  (lambda (pos)
+	(< (distance-from-colony pos) radius)))
+
+(defun position-of-colony-within-sight (ant radius)
+  (ignore-errors
+	(with-slots (x y) ant
+	  (destructuring-bind (tx ty)
+		  (car (sort (remove-if-not (within-radius-of-colony radius)
+									(positions-intelligent ant radius))
+					 #'< :key #'distance-from-colony))
+		(ensure-collision
+		 (list (mod (+ x (signum (- tx x))) *width*)
+			   (mod (+ y (signum (- ty y))) *width*)))))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; ant behaviors
+
+(defun search-food (ant)
+  (if (food-found-p ant)
+	  (collect-food ant)
+	  (ant-move-to 
+	   ant 
+	   (or (position-with-largest-food ant *ant-sight*)
+		   (bias-cond
+			 (20 (position-with-pheromon ant *ant-smelling*))
+			 (0 (position-with-least-or-wave-top ant *ant-smelling*))
+			 (0 (position-with-least-but-decent-pheromon
+				 ant *ant-smelling*))
+			 (0 (position-with-most-pheromon ant *ant-smelling*))
+			 (1 nil))
+		   (bias-cond
+			 (10   (position-most-away-from-other-ants ant *ant-sight*))
+			 (50   (position-when-go-straight ant))
+			 (1    (when-let ((fw (positions-forward ant 1)))
+					 (random-elt fw))))
+		   (when-let ((fw (positions-forward ant 1)))
+			 (random-elt fw))
+		   (random-elt (positions-around ant 1))))))
+
 
 (defun back-home (ant)
+  (emit-pheromon ant)
   (if (at-colony-p ant)
 	  (store-into-colony ant)
-	  (with-slots (x y vx vy) ant
-	   (destructuring-bind (nx ny)
-		   (or ;;(if (no-pheromon-in-front ant)
-			(position-nearest-to-colony ant)
-			;;(position-with-highest-pheromon-around ant))
-			(random-elt (valid-next-positions ant)))
-		 (setf vx (- nx x) vy (- ny y) x nx y ny))
-	   (incf (pheromon-at x y)
-			 (* (ant-food ant) *initial-pheromon*)))))
-
+	  (ant-move-to 
+	   ant 
+	   (or (position-of-colony-within-sight ant *ant-sight*)
+		   (bias-if 0.2d0
+					(position-nearest-to-colony ant))
+		   (bias-cond
+			 (20 (position-with-pheromon ant *ant-smelling*))
+			 (20 (position-with-least-but-decent-pheromon
+				 ant *ant-smelling*))
+			 (0 (position-with-most-pheromon ant *ant-smelling*))
+			 (20 nil))
+		   (bias-cond
+			 (20  (position-when-go-straight ant))
+			 (5  (when-let ((fw (positions-forward ant 1)))
+				   (random-elt fw))))
+		   (when-let ((fw (positions-forward ant 1)))
+			 (random-elt fw))
+		   (random-elt (positions-around ant 1))))))

@@ -29,7 +29,6 @@
 			   :cl-gtk2-glib
 			   :cl-gtk2-cairo
                :anaphora
-			   :dlist
                :iterate
                :alexandria)
   :components ((:module "src" :serial t
@@ -59,12 +58,10 @@
 						   (:file :directionable)
 						   (:file :2dpolygon)
 						   (:file :radius-diameter)
-						   (:file :motion-mixin)
 						   ;; classes
 						   (:file :2dsegment) (:file :2drectangle)
 						   (:file :2dline) (:file :2dcircle)
 						   (:file :2dobb)
-						   (:file :movable-2dobb)
 						   ;; (:file :3dsegment) (:file :hexahedron)
 						   ;; (:file :3dplane) (:file :3dline)
 						   ;; (:file :3dsphere) ;; (:file :3+1dvector)	 
