@@ -45,10 +45,20 @@
   (let ((drawable (gtk:widget-window canvas)))
 	(cl-gtk2-cairo:with-gdk-context
 		(ctx drawable)
+	  
 	  (multiple-value-bind (width height)
 		  (gdk:drawable-get-size drawable)
 		(cairo:with-context (ctx)
 		  (funcall fn width height))))))
+
+@eval-always
+@doc "macro for double-buffering"
+(defmacro with-push-group (&body body)
+  `(progn
+	 (cairo:push-group cairo:*context*)
+	 ,@body
+	 (cairo:pop-group-to-source cairo:*context*)
+	 (cairo:paint)))
 
 @eval-always
 (defmacro with-context ((&optional width height) canvas &body body)
@@ -81,10 +91,11 @@
 
 (defun reflesh (canvas)
   (with-context (w h) canvas
-	(with-saved-context 
-	  (cairo:set-source-rgba 0.8 0.8 0.8 1)
-	  (cairo:set-operator :source)
-	  (cairo:paint))
+	(with-push-group
+	  (with-saved-context 
+		(cairo:set-source-rgba 0.8 0.8 0.8 1)
+		(cairo:set-operator :source)
+		(cairo:paint))
 	  (with-saved-context
 		(let ((factor (scaling-factor *scale*)))
 		  (cairo:scale factor factor))
@@ -108,8 +119,10 @@
 		  (cairo:fill-path)
 		  
 		  (cairo:rectangle x y 1 1)
-		  (cairo:set-source-rgba
-		   0.3 0.3 1 (/ (field-pheromon f) *field-max-pheromon*))
+		  (let ((a (/ (field-pheromon f) *field-max-pheromon*)))
+			(if (plusp a)
+				(cairo:set-source-rgba 0.3 0.3 1 a)
+				(cairo:set-source-rgba 0.3 1 0.3 (- a))))
 		  (cairo:fill-path))
 
 		;; draws ants
@@ -127,4 +140,4 @@
 		  (when o
 			(cairo:rectangle x y 1 1)
 			(cairo:set-source-rgba 0 0 0 0.5)
-			(cairo:fill-path))))))
+			(cairo:fill-path)))))))

@@ -20,20 +20,21 @@
 
 (defvar *step-ms* 100)
 
-(defparameter *width* 100)
-(defparameter *height* 100)
+(defparameter *width* 150)
+(defparameter *height* 150)
 (defvar *field* (make-array (list *width* *height*)))
 (defparameter *colony-x* (random *width*))
 (defparameter *colony-y* (random *height*))
 (defparameter *stored-food* 0)
 (defparameter *ants* nil)
+(defparameter *ant-max-power* 300)
 (defparameter *ant-max-food* 5)
 (defparameter *ant-sight* 5)
 (defparameter *ant-smelling* 10)
 (defparameter *field-max-food* 200)
 (defparameter *field-max-pheromon* 200)
 (defparameter *initial-pheromon* 25)
-(defparameter *pheromon-evaporation-rate* 1)
+(defparameter *pheromon-evaporation-rate* 3)
 (defparameter *pheromon-appoximation-unit* 5)
 (defparameter *pheromon-detectable-limit* 5)
 
@@ -185,6 +186,7 @@
 (defun setup-field (rate)
   (setf *colony-x* (random *width*))
   (setf *colony-y* (random *height*))
+  (setf *field* (make-array (list *width* *height*)))
   (with-iter-array-row-major (field) *field*
 	(setf field (make-field
 				 :pheromon 0

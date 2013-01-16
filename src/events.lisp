@@ -53,7 +53,7 @@
 				  (setf (obstacle-at x y) t)))
 			   (positions-around-native
 				(mod (floor x) *width*)
-				(mod (floor y) *height*) 2))))
+				(mod (floor y) *height*) 3))))
 	  (3
 	   (with-slots (x y) (user-space
 						  (2dv (event-button-x e)
@@ -97,7 +97,7 @@
 				  (setf (food-at x y) *field-max-food*)))
 			   (positions-around-native
 				(mod (floor x) *width*)
-				(mod (floor y) *height*) 2))))
+				(mod (floor y) *height*) 3))))
 	  ((member :button2-mask (event-motion-state e))
 	   (with-slots (x y) (user-space
 						  (2dv (event-motion-x e)
