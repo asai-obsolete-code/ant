@@ -65,7 +65,7 @@ no care for multiple-evaluation."
 @eval-always
 @export
 (defmacro bias-if (bias then &optional else)
-  `(if (< (random 1.0d0) ,bias)
+  `(if (d< (drandom 1.0d0) ,bias)
 	   ,then
 	   ,else))
 

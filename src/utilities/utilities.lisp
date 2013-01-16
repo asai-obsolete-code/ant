@@ -3,6 +3,7 @@
 
 (in-package :report.utilities)
 (annot:enable-annot-syntax)
+(optimize*)
 
 (declaim (inline ^2 d^2 ->rad ->deg kph->mpms mpms->kph))
 
@@ -72,8 +73,8 @@
 
 @export
 (defun collect-on-reader (s reader fn reduce-fn)
-  (reduce reduce-fn
-		  (map 'list fn (funcall reader s))))
+  (awhen (map 'list fn (funcall reader s))
+	(reduce reduce-fn it)))
 
 
 @export

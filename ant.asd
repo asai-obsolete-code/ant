@@ -23,22 +23,55 @@
   :depends-on (
 			   :cl-annot
 			   :closer-mop
-			   :vecto
+			   :cl-gtk2-gtk
+			   :cl-gtk2-pango
+			   :cl-gtk2-gdk
+			   :cl-gtk2-glib
+			   :cl-gtk2-cairo
                :anaphora
+			   :dlist
                :iterate
                :alexandria)
   :components ((:module "src" :serial t
                 :components
                 ((:module :utilities :serial t :components
 						  ((:file :package)
+						   (:file :declaim)
+						   (:file :typed-ops)
 						   (:file :utilities)
 						   (:file :macros)
 						   (:file :random)
 						   (:file :object)
+						   (:file :generics)
+						   (:file :globals)
 						   (:file :classes)
-						   (:file :debug)
-						   (:file :declaim)))
-				 (:file :ant))))
+						   (:file :debug)))
+				 (:module :geometry :serial t :components
+						  ((:file :package)
+						   (:file :generics)
+						   (:file :generics-vector)
+						   ;; basic classes
+						   (:file :range) (:file :2dvector) 
+						   (:file :2+1dvector)
+						   (:file :2dshape) (:file :2dmatrix)
+						   ;; mixins
+						   (:file :infinite-shape)
+						   (:file :directionable)
+						   (:file :2dpolygon)
+						   (:file :radius-diameter)
+						   (:file :motion-mixin)
+						   ;; classes
+						   (:file :2dsegment) (:file :2drectangle)
+						   (:file :2dline) (:file :2dcircle)
+						   (:file :2dobb)
+						   (:file :movable-2dobb)
+						   ;; (:file :3dsegment) (:file :hexahedron)
+						   ;; (:file :3dplane) (:file :3dline)
+						   ;; (:file :3dsphere) ;; (:file :3+1dvector)	 
+						   (:file :intersects-p)))
+				 (:file :ant)
+				 (:file :events)
+				 (:file :graphics))))
   :description ""
   :long-description
   #.(with-open-file (stream (merge-pathnames
