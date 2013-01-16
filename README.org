@@ -18,6 +18,18 @@
 | Mouse3 Drag        | put ant's food     |
 |                    |                    |
 
+*** Attention
+
+Do not try to put a wall after you've started running!
+It may cause a severe problem in the program and require you to
+restart the lisp backend.
+
+*** Notice
+
+=cl-gtk-gtk2= takes a long long time to compile and load the image.
+Go take cookies and a cup of coffee during the compilation time.
+Those ants would appreciate it.
+
 ** Dependencies
 
 + Ubuntu Linux 12.04
