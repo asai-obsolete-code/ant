@@ -37,10 +37,10 @@
 (defparameter *initial-pheromon* 25)
 (defparameter *pheromon-evaporation-rate* 1)
 (defparameter *pheromon-appoximation-unit* 5)
-(defparameter *pheromon-detectable-limit* 5)
+(defparameter *pheromon-detectable-limit* 15)
 
 (defparameter *default-food-rate* 0.0d0)
-(defparameter *default-ants-number* 50)
+(defparameter *default-ants-number* 250)
 
 (defparameter *obstacles* (make-array (list *width* *height*)
 									  :element-type 'boolean
@@ -148,8 +148,8 @@
   (if (have-food-p ant)
 	  (case (ant-mode ant)
 		(:heuristics
-		 (decf (ant-power ant))
-		 (when (zerop (ant-power ant))
+		 (decf (ant-power ant) 2)
+		 (when (not (plusp (ant-power ant)))
 		   (setf (ant-mode ant) :random-walk)))
 		(:random-walk
 		 (incf (ant-power ant))
@@ -160,21 +160,27 @@
 		(setf (ant-mode ant) :heuristics))))
 
 (defun emit-pheromon (ant &optional (strength 1) (diffusion 0.2))
-  (iter (for (x y) in (positions-backward ant 1))
-		(incf (pheromon-at x y)
-			  (* diffusion
-				 strength
-				 (ant-food ant)
-				 *initial-pheromon*))
-		(when (> (pheromon-at x y) *field-max-pheromon*)
-		  (setf (pheromon-at x y) *field-max-pheromon*)))
-  (with-slots (x y) ant
-	(incf (pheromon-at x y)
-		  (* strength
-			 (ant-food ant)
-			 *initial-pheromon*))
-	(when (> (pheromon-at x y) *field-max-pheromon*)
-		  (setf (pheromon-at x y) *field-max-pheromon*))))
+  (let ((power-scale
+		 (case (ant-mode ant)
+		   (:heuristics 1)
+		   (:random-walk 0.1))))
+	(iter (for (x y) in (positions-backward ant 1))
+		  (incf (pheromon-at x y)
+				(* diffusion
+				   power-scale
+				   strength
+				   (ant-food ant)
+				   *initial-pheromon*))
+		  (when (> (pheromon-at x y) *field-max-pheromon*)
+			(setf (pheromon-at x y) *field-max-pheromon*)))
+	(with-slots (x y) ant
+	  (incf (pheromon-at x y)
+			(* strength
+			   power-scale
+			   (ant-food ant)
+			   *initial-pheromon*))
+	  (when (> (pheromon-at x y) *field-max-pheromon*)
+		(setf (pheromon-at x y) *field-max-pheromon*)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; obstacle
@@ -493,21 +499,30 @@
 	  (ant-move-to 
 	   ant 
 	   (or (position-of-colony-within-sight ant *ant-sight*)
-		   (bias-if (case (ant-mode ant)
-					  (:heuristics 0.99d0)
-					  (:random-walk 0.01d0)
-					  (t 0.0d0))
-					(position-nearest-to-colony ant))
-		   (bias-cond
-			 (20 (position-with-pheromon ant *ant-smelling*))
-			 (20 (position-with-least-but-decent-pheromon
-				 ant *ant-smelling*))
-			 (0 (position-with-most-pheromon ant *ant-smelling*))
-			 (20 nil))
-		   (bias-cond
-			 (20  (position-when-go-straight ant))
-			 (5  (when-let ((fw (positions-forward ant 1)))
-				   (random-elt fw))))
+		   (case (ant-mode ant)
+			 (:heuristics
+			  (or (bias-if 0.99d0	(position-nearest-to-colony ant))
+				  (bias-cond
+					(20 (position-with-pheromon ant *ant-smelling*))
+					(20 (position-with-least-but-decent-pheromon
+						 ant *ant-smelling*))
+					(0 (position-with-most-pheromon ant *ant-smelling*))
+					(20 nil))
+				  (bias-cond
+					(20  (position-when-go-straight ant))
+					(5  (when-let ((fw (positions-forward ant 1)))
+						  (random-elt fw))))))
+			 (:random-walk
+			  (or (bias-cond
+					(0 (position-with-pheromon ant *ant-smelling*))
+					(0 (position-with-least-but-decent-pheromon
+						 ant *ant-smelling*))
+					(0 (position-with-most-pheromon ant *ant-smelling*))
+					(1 nil))
+				  (bias-cond
+					(20  (position-when-go-straight ant))
+					(1  (when-let ((fw (positions-forward ant 1)))
+						  (random-elt fw)))))))		   
 		   (when-let ((fw (positions-forward ant 1)))
 			 (random-elt fw))
 		   (random-elt (positions-around ant 1))))))
