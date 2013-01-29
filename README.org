@@ -44,6 +44,17 @@ Those ants would appreciate it.
 
 ** Installation
 
++ see [[http://www.sbcl.org/][sbcl]] to get the common lisp implementation
++ see [[http://www.quicklisp.org/][quicklisp]] for how to install the dependencies.
+
+** Movies
++ [[http://www.youtube.com/watch?v=ZeFumJJzf04]] 
++ [[http://www.youtube.com/watch?v=VgWDosT72jw]]
++ http://www.youtube.com/watch?v=J7Pg9bzSrEM
++ http://www.youtube.com/watch?v=GLGNb1AJq4Y
++ http://www.youtube.com/watch?v=xV7I_TvVwJE
++ http://www.youtube.com/watch?v=VgWDosT72jw
+
 ** Author
 
 + Masataro Asai 
