@@ -10,14 +10,14 @@
 
 (defmethod direction ((line 2dline))
   (with-memoising-slot (direction line)
-	(call-next-method)))
+    (call-next-method)))
 
 ;; @inherited length :from infinity-shape
 ;; @inherited diameter :from infinity-shape
 
 (defmethod congruent-p ((l1 2dline) (l2 2dline))
   (parallel-p (direction l1)
-			  (direction l2)))
+              (direction l2)))
 
 (defmethod congruent-p ((l 2dline) (s 2dsegment))
   (parallel-p l s))
@@ -28,9 +28,9 @@
 
 (defmethod parallel-p ((l1 2dline) (l2 2dline))
   (parallel-p (direction l1)
-			  (direction l2)))
+              (direction l2)))
 
 (defmethod perpendicular-p ((l1 2dline) (l2 2dline))
   (perpendicular-p (direction l1)
-				   (direction l2)))
+                   (direction l2)))
 

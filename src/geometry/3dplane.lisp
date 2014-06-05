@@ -6,19 +6,19 @@
 @export-slots
 (defclass 3dplane (infinity-shape 3dshape)
   ((base :type 3dvector
-		 :initarg :base
-		 :initform (3dv-coerce 0 0 0)
-		 :accessor base-of)
+         :initarg :base
+         :initform (3dv-coerce 0 0 0)
+         :accessor base-of)
    (normal :type 3dvector
-		   :initarg :normal
-		   :initform (3dv-coerce 0 0 1)
-		   :reader normal-of)))
+           :initarg :normal
+           :initform (3dv-coerce 0 0 1)
+           :reader normal-of)))
 
 (defmethod implicit-function ((plane 3dplane))
   (lambda (p)
-	@type 3dvector p
-	(with-slots (base normal) plane
-	  (dot normal (sub p base)))))
+    @type 3dvector p
+    (with-slots (base normal) plane
+      (dot normal (sub p base)))))
 
 (defmethod parallel-p ((pl 3dplane) (v vector))
   (zerop (dot (normal-of pl) v)))
@@ -27,7 +27,7 @@
 
 (defmethod parallel-p ((p1 3dplane) (p2 3dplane))
   (zerop (norm (vector-prod (normal-of p1)
-							(normal-of p2)))))
+                            (normal-of p2)))))
 
 (defmethod congruent-p ((p1 3dplane) (p2 3dplane))
   t)
@@ -44,5 +44,5 @@
   (zerop (norm (vector-prod (normal-of pl) v))))
 (defmethod perpendicular-p ((p1 3dplane) (p2 3dplane))
   (zerop (dot (normal-of p1)
-			  (normal-of p2))))
+              (normal-of p2))))
 

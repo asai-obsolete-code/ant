@@ -5,8 +5,8 @@
 
 (defclass 2dcurve-1p (2dshape)
   ((fn :type (function (*desired-type*) 2dvector)
-	   :initarg :fn
-	   :accessor fn-of)))
+       :initarg :fn
+       :accessor fn-of)))
 
 (defgeneric parametric-at (curve &rest params))
 
